@@ -1,6 +1,8 @@
+import 'package:swagger_parser/helpers/custom_exception.dart';
 import 'package:swagger_parser/models/swagger_document/base_parameter.dart';
 import 'package:swagger_parser/models/swagger_document/swagger_doc.dart';
 import 'package:swagger_parser/models/swagger_document/swagger_method.dart';
+import 'package:swagger_parser/models/swagger_document/swagger_response_parameter.dart';
 import 'package:swagger_parser/service/get_response.dart';
 
 import '../models/common/ref_content.dart';
@@ -12,7 +14,6 @@ class GetSwaggerDoc {
   static const String componentsKey = "components";
   static const String summaryKey = "summary";
   static const String requestBodyKey = "requestBody";
-  static const String contentKey = "content";
   static const String schemaKey = "schema";
   static const String refKey = "\$ref";
   static const String typeKey = "type";
@@ -24,135 +25,179 @@ class GetSwaggerDoc {
   static const String nameKey = "name";
   static const String inKey = "in";
   static const String formatKey = "format";
+  static const String responsesKey = "responses";
+  static const String successResponseKey = "200";
 
-  static Future<SwaggerDoc> getSwaggerDoc() async {
-    final responseMap = await GetResponse.getResponse();
-    final paths = responseMap[pathsKey];
+  static Future<SwaggerDoc> getSwaggerDoc(String url) async {
+    final mainMap = await GetResponse.getResponse(url);
+    final pathsMap = mainMap[pathsKey];
+    List<SwaggerMethod> swaggerMethods = [];
 
-    var swaggerMethods = List<SwaggerMethod>.empty(growable: true);
+    if (pathsMap is! Map<String, dynamic>) {
+      throw Error();
+    }
 
-    if (paths is Map<String, dynamic>) {
-      final content = responseMap[componentsKey];
-      if (content is! Map<String, dynamic>) {
+    for (var path in pathsMap.entries) {
+      final methodsMap = path.value;
+
+      if (methodsMap is! Map<String, dynamic>) {
         throw Error();
       }
 
-      for (var path in paths.entries) {
-        final methods = path.value;
+      for (var method in methodsMap.entries) {
+        var swaggerMethod = SwaggerMethod(
+          name: path.key,
+          type: getMethodType(method.key),
+        );
 
-        if (methods is! Map<String, dynamic>) {
+        final methodContentMap = method.value;
+
+        if (methodContentMap == null && methodContentMap is! Map<String, dynamic>) {
           throw Error();
         }
 
-        for (var method in methods.entries) {
-          var swaggerMethod = SwaggerMethod(
-            name: path.key,
-            type: getMethodType(method.key),
-            requestParameters: [],
-          );
+        swaggerMethod.description = methodContentMap[summaryKey];
+        swaggerMethod.requestParameters =
+            _getSwaggerRequestParameters(methodContentMap: methodContentMap, mainMap: mainMap);
+        swaggerMethod.responseParameters =
+            _getSwaggerResponseParameters(methodContentMap: methodContentMap, mainMap: mainMap);
 
-          final methodValues = method.value;
-
-          if (methodValues == null && methodValues is! Map<String, dynamic>) {
-            throw Error();
-          }
-
-          swaggerMethod.description = methodValues[summaryKey];
-
-          var parametersMap = methodValues[parametersKey];
-
-          if (parametersMap != null && parametersMap is List<Map<String, dynamic>>) {
-            for (var parameter in parametersMap) {
-              var parameterSchemaMap = parameter[schemaKey];
-
-              if (parameterSchemaMap == null && parameterSchemaMap is! Map<String, dynamic>) {
-                throw Error();
-              }
-
-              var typeStr = parameterSchemaMap[typeKey]?.toString();
-              var itemsMap = _getParameterItems(parameterSchemaMap, responseMap);
-
-              var requestParameter = SwaggerRequestParameter(
-                name: parameter[nameKey],
-                type: getParameterType(typeStr ?? itemsMap![typeKey]),
-                location: getParameterLocation(parameter[inKey]),
-                description: parameter[descriptionKey],
-                format: parameterSchemaMap[formatKey],
-              );
-
-              var parameterItemMap = parameterSchemaMap[itemsKey];
-
-              swaggerMethod.requestParameters?.add(requestParameter);
-            }
-          }
-
-          var requestMap = methodValues[requestBodyKey];
-
-          if (requestMap != null && requestMap is Map<String, dynamic>) {
-            var contentMap = requestMap[contentKey];
-
-            if (contentMap is! Map<String, dynamic>) {
-              throw Error();
-            }
-
-            var schemaMap = contentMap.entries.first.value;
-
-            if (schemaMap is! Map<String, dynamic>) {
-              throw Error();
-            }
-
-            var schema = schemaMap[schemaKey];
-
-            if (schema is! Map<String, dynamic>) {
-              throw Error();
-            }
-
-            var refContent = _getRefContent(schema, responseMap);
-            var contentProperties = refContent.content;
-
-            if (contentProperties == null && contentProperties is! Map<String, dynamic>) {
-              throw Error();
-            }
-
-            var requestParameter = SwaggerRequestParameter(
-                name: refContent.name,
-                type: getParameterType(contentProperties[typeKey].toString()),
-                location: ParameterLocation.body,
-                description: contentProperties[descriptionKey]);
-
-            var childProperties = contentProperties[propertiesKey];
-            if (childProperties == null && childProperties is! Map<String, dynamic>) {
-              throw Error();
-            }
-
-            requestParameter.childParameters = _getParameters(childProperties, responseMap);
-            swaggerMethod.requestParameters?.add(requestParameter);
-
-            for (var element in contentProperties.entries) {}
-          }
-
-          swaggerMethods.add(swaggerMethod);
-        }
+        swaggerMethods.add(swaggerMethod);
       }
     }
 
     return SwaggerDoc(swaggerMethods);
   }
 
-  static List<BaseParameter>? _getChildProperties(
-      Map<String, dynamic> schemaMap, Map<String, dynamic> responseMap) {
-    var typeStr = schemaMap[typeKey]?.toString();
-    var refStr = schemaMap[refKey]?.toString();
-    var itemsMap = schemaMap[itemsKey];
+  ///Получение узла schema
+  static Map<String, dynamic>? _getSchemaMap(Map<String, dynamic> dictionary) {
+    for (var element in dictionary.entries) {
+      if (element.key == schemaKey) {
+        var schemaMap = element.value;
+        return schemaMap is Map<String, dynamic> ? schemaMap : null;
+      }
 
-    if (refStr == null) {
-      if (itemsMap != null && itemsMap is Map<String, dynamic>) {
-        refStr = itemsMap[refKey]?.toString();
+      var nextMap = element.value;
+      if (nextMap is! Map<String, dynamic>) {
+        continue;
+      }
+
+      return _getSchemaMap(nextMap);
+    }
+  }
+
+  ///Преобразование параметрова из респонса в список моделей
+  ///
+  ///[methodContentMap] узел параметров метода
+  ///[mainMap] основной узел
+  static List<SwaggerResponseParameter>? _getSwaggerResponseParameters({
+    required Map<String, dynamic> methodContentMap,
+    required Map<String, dynamic> mainMap,
+  }) {
+    List<SwaggerResponseParameter>? responseParameters = [];
+    var responseMap = methodContentMap[responsesKey];
+
+    if (responseMap != null && responseMap is Map<String, dynamic>) {
+      var successResponseMap = responseMap[successResponseKey];
+
+      if (successResponseMap == null && successResponseMap is! Map<String, dynamic>) {
+        return null;
+      }
+
+      var schemaMap = _getSchemaMap(successResponseMap);
+
+      if (schemaMap == null) {
+        return null;
+      }
+
+      var refProperties = _getChildProperties(schemaMap: schemaMap, mainMap: mainMap);
+
+      var responseParameter = SwaggerResponseParameter(
+        name: refProperties.name.toString(),
+        type: refProperties.parentType,
+        description: refProperties.parentDescription,
+        childParameters: refProperties.childProperties,
+      );
+
+      responseParameters.add(responseParameter);
+    }
+
+    return responseParameters.isEmpty ? null : responseParameters;
+  }
+
+  /// Преобразование параметров из реквеста в список моделей
+  ///
+  /// [methodContentMap] узел параметров метода
+  /// [mainMap] основной узел
+  static List<SwaggerRequestParameter>? _getSwaggerRequestParameters({
+    required Map<String, dynamic> methodContentMap,
+    required Map<String, dynamic> mainMap,
+  }) {
+    List<SwaggerRequestParameter> requestParameters = [];
+    var parametersMap = methodContentMap[parametersKey];
+
+    if (parametersMap != null && parametersMap is List<Map<String, dynamic>>) {
+      for (var parameter in parametersMap) {
+        var parameterSchemaMap = _getSchemaMap(parameter);
+
+        if (parameterSchemaMap == null) {
+          throw Error();
+        }
+
+        var refProperties = _getChildProperties(schemaMap: parameterSchemaMap, mainMap: mainMap);
+
+        var requestParameter = SwaggerRequestParameter(
+          name: parameter[nameKey],
+          type: refProperties.parentType,
+          location: getParameterLocation(parameter[inKey]),
+          description: parameter[descriptionKey],
+          format: parameterSchemaMap[formatKey],
+          childParameters: refProperties.childProperties,
+        );
+        requestParameters.add(requestParameter);
       }
     }
 
+    var requestMap = methodContentMap[requestBodyKey];
+
+    if (requestMap != null && requestMap is Map<String, dynamic>) {
+      var schemaMap = _getSchemaMap(requestMap);
+
+      if (schemaMap == null) {
+        throw Error();
+      }
+
+      var refProperties = _getChildProperties(schemaMap: schemaMap, mainMap: mainMap);
+
+      var requestParameter = SwaggerRequestParameter(
+        name: refProperties.name.toString(),
+        type: refProperties.parentType,
+        location: ParameterLocation.body,
+        description: refProperties.parentDescription,
+        childParameters: refProperties.childProperties,
+      );
+
+      requestParameters.add(requestParameter);
+    }
+
+    return requestParameters.isEmpty ? null : requestParameters;
+  }
+
+  ///получение моделей дочерних свойств параметра
+  static RefContent _getChildProperties({
+    required Map<String, dynamic> schemaMap,
+    required Map<String, dynamic> mainMap,
+  }) {
+    var typeStr = schemaMap[typeKey]?.toString();
+    var itemsMap = schemaMap[itemsKey];
+    var refStr = schemaMap[refKey] ??
+        (itemsMap != null && itemsMap is Map<String, dynamic>
+            ? itemsMap[refKey]?.toString()
+            : null);
+
     if (refStr != null) {
-      var refContent = _getRefContentParameters(refStr.split('/').skip(1).toList(), responseMap);
+      var refParts = refStr.split('/').skip(1).toList();
+      var refContent = _getRefContentParameters(refParts, mainMap);
 
       if (refContent == null && refContent is! Map<String, dynamic>) {
         throw Error();
@@ -160,25 +205,31 @@ class GetSwaggerDoc {
 
       var childProperties = refContent[propertiesKey];
       if (childProperties == null && childProperties is! Map<String, dynamic>) {
-        throw Error();
+        return RefContent(parentType: getParameterType(typeStr ?? refContent[typeKey].toString()));
       }
 
-      var childParameters = _getParameters(childProperties, responseMap);
+      var childParameters = _getParameters(childProperties, mainMap);
 
-      return childParameters;
+      return RefContent(
+        childProperties: childParameters,
+        parentType: getParameterType(typeStr ?? refContent[typeKey].toString()),
+        name: refParts.last,
+        parentDescription: refContent[descriptionKey]?.toString(),
+      );
     }
-  }
 
-  static MethodType getMethodType(String key) {
-    return MethodType.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
-  }
+    if (itemsMap != null && itemsMap is Map<String, dynamic>) {
+      var baseParameter = BaseParameter(
+        name: itemsMap[nameKey] ?? "${typeStr}Item",
+        type: getParameterType(itemsMap[typeKey].toString()),
+        format: itemsMap[formatKey]?.toString(),
+      );
 
-  static ParameterType getParameterType(String key) {
-    return ParameterType.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
-  }
+      return RefContent(
+          childProperties: [baseParameter], parentType: getParameterType(typeStr.toString()));
+    }
 
-  static ParameterLocation getParameterLocation(String key) {
-    return ParameterLocation.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
+    return RefContent(parentType: getParameterType(typeStr.toString()));
   }
 
   static Map<String, dynamic>? _getRefContentParameters(
@@ -192,79 +243,41 @@ class GetSwaggerDoc {
     return _getRefContentParameters(refs.skip(1).toList(), response[refs.first]);
   }
 
-  static Map<String, dynamic>? _getParameterItems(
-      Map<String, dynamic> dict, Map<String, dynamic> responseMap) {
-    var ref = dict[refKey]?.toString();
-    if (ref != null) {
-      return _getRefContentParameters(ref.split("/").skip(1).toList(), responseMap);
-    }
-
-    var itemsMap = dict[itemsKey];
-    if (itemsMap == null && itemsMap is! Map<String, dynamic>) {
-      return null;
-    }
-
-    ref = itemsMap[refKey]?.toString();
-    if (ref != null) {
-      return _getRefContentParameters(ref.split("/").skip(1).toList(), responseMap);
-    }
-
-    return itemsMap;
-  }
-
-  static RefContent _getRefContent(Map<String, dynamic> dict, Map<String, dynamic> responseMap) {
-    var ref = dict[refKey] ?? "";
-
-    var refParts = ref.split('/').skip(1).toList();
-
-    return RefContent(
-        name: refParts.last, content: _getRefContentParameters(refParts, responseMap));
-  }
-
   static List<BaseParameter>? _getParameters(
       Map<String, dynamic> parametersMap, Map<String, dynamic> responseMap) {
     var parameters = List<BaseParameter>.empty(growable: true);
 
     for (var parameter in parametersMap.entries) {
-      var parameterValue = parameter.value;
+      var propertyMap = parameter.value;
 
-      if (parameterValue is! Map<String, dynamic>) {
+      if (propertyMap is! Map<String, dynamic>) {
         throw Error();
       }
 
-      var type = parameterValue[typeKey].toString();
-      var parameterType = getParameterType(type);
-      var baseParameter = BaseParameter(name: parameter.key, type: parameterType);
-
-      if (parameterType == ParameterType.array || parameterType == ParameterType.object) {
-        var itemsMap = parameterValue[itemsKey];
-
-        if (itemsMap == null && itemsMap is! Map<String, dynamic>) {
-          throw Error();
-        }
-
-        var refContent = _getRefContent(itemsMap, responseMap);
-        var contentProperties = refContent.content;
-
-        if (contentProperties == null && contentProperties is! Map<String, dynamic>) {
-          throw Error();
-        }
-
-        var childProperties = contentProperties[propertiesKey];
-        if (childProperties == null && childProperties is! Map<String, dynamic>) {
-          throw Error();
-        }
-
-        var childParametersMap = _getParameters(childProperties, responseMap);
-        baseParameter.childParameters = childParametersMap;
-      }
-
-      baseParameter.description = parameterValue[descriptionKey]?.toString();
-      baseParameter.nullable = parameterValue[nullableKey];
-
+      var refProperties = _getChildProperties(schemaMap: propertyMap, mainMap: responseMap);
+      var baseParameter = BaseParameter(
+        name: parameter.key,
+        type: refProperties.parentType,
+        description: propertyMap[descriptionKey]?.toString(),
+        nullable: propertyMap[nullableKey],
+        childParameters: refProperties.childProperties,
+        format: propertyMap[formatKey],
+      );
       parameters.add(baseParameter);
     }
 
     return parameters;
+  }
+
+  static MethodType getMethodType(String key) {
+    return MethodType.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
+  }
+
+  static ParameterType getParameterType(String key) {
+    return ParameterType.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
+  }
+
+  static ParameterLocation getParameterLocation(String key) {
+    return ParameterLocation.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
   }
 }

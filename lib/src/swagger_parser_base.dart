@@ -5,5 +5,5 @@ import 'package:swagger_parser/service/get_swagger_doc.dart';
 
 /// Checks if you are awesome. Spoiler: you are.
 class SwaggerParser {
-  Future<dynamic> getDoc() async => await GetSwaggerDoc.getSwaggerDoc();
+  Future<dynamic> getDoc(String url) async => await GetSwaggerDoc.getSwaggerDoc(url);
 }

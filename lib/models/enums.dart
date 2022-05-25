@@ -7,6 +7,7 @@ enum ParameterType {
   object,
   file,
   number,
+  boolean,
 }
 
 enum ParameterLocation {

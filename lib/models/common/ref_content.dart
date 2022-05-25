@@ -1,12 +1,23 @@
+import 'package:swagger_parser/models/enums.dart';
+import 'package:swagger_parser/models/swagger_document/base_parameter.dart';
+
 class RefContent {
   RefContent({
-    required this.name,
-    this.content,
+    this.name,
+    this.childProperties,
+    required this.parentType,
+    this.parentDescription,
   });
 
-  //словарь параметров рефки
-  Map<String, dynamic>? content;
-
   //название родительского параметра
-  String name;
+  String? name;
+
+  //Параметры рефки сформированные в модель
+  List<BaseParameter>? childProperties;
+
+  //Тип родительского параметра
+  ParameterType parentType;
+
+  //описание родительского параметра
+  String? parentDescription;
 }
