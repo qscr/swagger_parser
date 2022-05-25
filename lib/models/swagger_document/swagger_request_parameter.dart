@@ -8,6 +8,9 @@ class SwaggerRequestParameter extends BaseParameter {
     required super.type,
     required this.location,
     super.description,
+    super.childParameters,
+    super.nullable,
+    super.format,
   });
 
   /// Откуда параметр (хедер, квери и т.д.)

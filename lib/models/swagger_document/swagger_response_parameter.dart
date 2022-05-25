@@ -6,5 +6,8 @@ class SwaggerResponseParameter extends BaseParameter {
     required super.name,
     required super.type,
     super.description,
+    super.childParameters,
+    super.nullable,
+    super.format,
   });
 }
