@@ -1,6 +1,10 @@
+import 'package:json_annotation/json_annotation.dart';
 import 'package:swagger_parser/models/enums.dart';
 
+part 'base_parameter.g.dart';
+
 /// Базовая модель параметра (и для респонса, и для реквеста)
+@JsonSerializable()
 class BaseParameter {
   BaseParameter({
     this.description,
@@ -28,4 +32,8 @@ class BaseParameter {
 
   // Дочерние параметры
   List<BaseParameter>? childParameters;
+
+  factory BaseParameter.fromJson(Map<String, dynamic> json) => _$BaseParameterFromJson(json);
+
+  Map<String, dynamic> toJson() => _$BaseParameterToJson(this);
 }

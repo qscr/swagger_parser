@@ -1,9 +1,9 @@
 // TODO: Put public facing types in this file.
 
-import 'package:swagger_parser/service/get_response.dart';
+import 'package:swagger_parser/models/swagger_document/swagger_doc.dart';
 import 'package:swagger_parser/service/get_swagger_doc.dart';
 
 /// Checks if you are awesome. Spoiler: you are.
 class SwaggerParser {
-  Future<dynamic> getDoc(String url) async => await GetSwaggerDoc.getSwaggerDoc(url);
+  Future<SwaggerDoc> getDoc(String url) async => await GetSwaggerDoc.getSwaggerDoc(url);
 }
