@@ -1,10 +1,10 @@
-import 'package:swagger_parser/helpers/custom_exception.dart';
 import 'package:swagger_parser/models/swagger_document/base_parameter.dart';
 import 'package:swagger_parser/models/swagger_document/swagger_doc.dart';
 import 'package:swagger_parser/models/swagger_document/swagger_method.dart';
 import 'package:swagger_parser/models/swagger_document/swagger_response_parameter.dart';
 import 'package:swagger_parser/service/get_response.dart';
 
+import '../helpers/enums_helper.dart';
 import '../models/common/ref_content.dart';
 import '../models/enums.dart';
 import '../models/swagger_document/swagger_request_parameter.dart';
@@ -33,21 +33,21 @@ class GetSwaggerDoc {
     final pathsMap = mainMap[pathsKey];
     List<SwaggerMethod> swaggerMethods = [];
 
-    if (pathsMap is! Map<String, dynamic>) {
+    if (pathsMap == null && pathsMap is! Map<String, dynamic>) {
       throw Error();
     }
 
     for (var path in pathsMap.entries) {
       final methodsMap = path.value;
 
-      if (methodsMap is! Map<String, dynamic>) {
+      if (methodsMap == null && methodsMap is! Map<String, dynamic>) {
         throw Error();
       }
 
       for (var method in methodsMap.entries) {
         var swaggerMethod = SwaggerMethod(
           name: path.key,
-          type: getMethodType(method.key),
+          type: EnumsHelper.getMethodType(method.key),
         );
 
         final methodContentMap = method.value;
@@ -69,21 +69,47 @@ class GetSwaggerDoc {
     return SwaggerDoc(swaggerMethods);
   }
 
-  ///Получение узла schema
-  static Map<String, dynamic>? _getSchemaMap(Map<String, dynamic> dictionary) {
+  ///Получение узла по заданном ключу
+  ///
+  ///[dictionary] словарь, в котором нужно получить узел
+  ///[keys] список ключей
+  static Map<String, dynamic>? _getKeyMap({
+    required Map<String, dynamic> dictionary,
+    required List<String> keys,
+  }) {
     for (var element in dictionary.entries) {
-      if (element.key == schemaKey) {
+      if (keys.contains(element.key)) {
         var schemaMap = element.value;
         return schemaMap is Map<String, dynamic> ? schemaMap : null;
       }
 
       var nextMap = element.value;
-      if (nextMap is! Map<String, dynamic>) {
-        continue;
+      if (nextMap is Map<String, dynamic>) {
+        return _getKeyMap(dictionary: nextMap, keys: keys);
+      }
+    }
+    return null;
+  }
+
+  ///Получение узла по заданном ключу
+  ///
+  ///[dictionary] словарь, в котором нужно получить узел
+  static String? _getKey({
+    required Map<String, dynamic> dictionary,
+    required String key,
+  }) {
+    for (var element in dictionary.entries) {
+      if (element.key == key) {
+        var ref = element.value;
+        return ref?.toString();
       }
 
-      return _getSchemaMap(nextMap);
+      var nextMap = element.value;
+      if (nextMap is Map<String, dynamic>) {
+        return _getKey(dictionary: nextMap, key: key);
+      }
     }
+    return null;
   }
 
   ///Преобразование параметрова из респонса в список моделей
@@ -104,7 +130,7 @@ class GetSwaggerDoc {
         return null;
       }
 
-      var schemaMap = _getSchemaMap(successResponseMap);
+      var schemaMap = _getKeyMap(dictionary: successResponseMap, keys: [schemaKey]);
 
       if (schemaMap == null) {
         return null;
@@ -113,7 +139,7 @@ class GetSwaggerDoc {
       var refProperties = _getChildProperties(schemaMap: schemaMap, mainMap: mainMap);
 
       var responseParameter = SwaggerResponseParameter(
-        name: refProperties.name.toString(),
+        name: refProperties.name ?? "${refProperties.parentType.toString().split('.').last}Item",
         type: refProperties.parentType,
         description: refProperties.parentDescription,
         childParameters: refProperties.childProperties,
@@ -138,7 +164,7 @@ class GetSwaggerDoc {
 
     if (parametersMap != null && parametersMap is List<Map<String, dynamic>>) {
       for (var parameter in parametersMap) {
-        var parameterSchemaMap = _getSchemaMap(parameter);
+        var parameterSchemaMap = _getKeyMap(dictionary: parameter, keys: [schemaKey]);
 
         if (parameterSchemaMap == null) {
           throw Error();
@@ -149,7 +175,7 @@ class GetSwaggerDoc {
         var requestParameter = SwaggerRequestParameter(
           name: parameter[nameKey],
           type: refProperties.parentType,
-          location: getParameterLocation(parameter[inKey]),
+          location: EnumsHelper.getParameterLocation(parameter[inKey]),
           description: parameter[descriptionKey],
           format: parameterSchemaMap[formatKey],
           childParameters: refProperties.childProperties,
@@ -161,7 +187,7 @@ class GetSwaggerDoc {
     var requestMap = methodContentMap[requestBodyKey];
 
     if (requestMap != null && requestMap is Map<String, dynamic>) {
-      var schemaMap = _getSchemaMap(requestMap);
+      var schemaMap = _getKeyMap(dictionary: requestMap, keys: [schemaKey]);
 
       if (schemaMap == null) {
         throw Error();
@@ -170,7 +196,7 @@ class GetSwaggerDoc {
       var refProperties = _getChildProperties(schemaMap: schemaMap, mainMap: mainMap);
 
       var requestParameter = SwaggerRequestParameter(
-        name: refProperties.name.toString(),
+        name: refProperties.name ?? "${refProperties.parentType.toString().split('.').last}Item",
         type: refProperties.parentType,
         location: ParameterLocation.body,
         description: refProperties.parentDescription,
@@ -188,12 +214,9 @@ class GetSwaggerDoc {
     required Map<String, dynamic> schemaMap,
     required Map<String, dynamic> mainMap,
   }) {
-    var typeStr = schemaMap[typeKey]?.toString();
-    var itemsMap = schemaMap[itemsKey];
-    var refStr = schemaMap[refKey] ??
-        (itemsMap != null && itemsMap is Map<String, dynamic>
-            ? itemsMap[refKey]?.toString()
-            : null);
+    var typeStr = _getKey(dictionary: schemaMap, key: typeKey);
+    var itemsMap = _getKeyMap(dictionary: schemaMap, keys: [itemsKey, propertiesKey]);
+    var refStr = _getKey(dictionary: schemaMap, key: refKey);
 
     if (refStr != null) {
       var refParts = refStr.split('/').skip(1).toList();
@@ -205,31 +228,27 @@ class GetSwaggerDoc {
 
       var childProperties = refContent[propertiesKey];
       if (childProperties == null && childProperties is! Map<String, dynamic>) {
-        return RefContent(parentType: getParameterType(typeStr ?? refContent[typeKey].toString()));
+        return RefContent(
+            parentType: EnumsHelper.getParameterType(typeStr ?? refContent[typeKey].toString()));
       }
 
       var childParameters = _getParameters(childProperties, mainMap);
 
       return RefContent(
         childProperties: childParameters,
-        parentType: getParameterType(typeStr ?? refContent[typeKey].toString()),
+        parentType: EnumsHelper.getParameterType(typeStr ?? refContent[typeKey].toString()),
         name: refParts.last,
         parentDescription: refContent[descriptionKey]?.toString(),
       );
     }
 
-    if (itemsMap != null && itemsMap is Map<String, dynamic>) {
-      var baseParameter = BaseParameter(
-        name: itemsMap[nameKey] ?? "${typeStr}Item",
-        type: getParameterType(itemsMap[typeKey].toString()),
-        format: itemsMap[formatKey]?.toString(),
-      );
-
+    if (itemsMap != null) {
       return RefContent(
-          childProperties: [baseParameter], parentType: getParameterType(typeStr.toString()));
+          childProperties: _getParameters(itemsMap, mainMap),
+          parentType: EnumsHelper.getParameterType(typeStr.toString()));
     }
 
-    return RefContent(parentType: getParameterType(typeStr.toString()));
+    return RefContent(parentType: EnumsHelper.getParameterType(typeStr.toString()));
   }
 
   static Map<String, dynamic>? _getRefContentParameters(
@@ -245,13 +264,13 @@ class GetSwaggerDoc {
 
   static List<BaseParameter>? _getParameters(
       Map<String, dynamic> parametersMap, Map<String, dynamic> responseMap) {
-    var parameters = List<BaseParameter>.empty(growable: true);
+    List<BaseParameter> parameters = [];
 
     for (var parameter in parametersMap.entries) {
       var propertyMap = parameter.value;
 
       if (propertyMap is! Map<String, dynamic>) {
-        throw Error();
+        return null;
       }
 
       var refProperties = _getChildProperties(schemaMap: propertyMap, mainMap: responseMap);
@@ -267,17 +286,5 @@ class GetSwaggerDoc {
     }
 
     return parameters;
-  }
-
-  static MethodType getMethodType(String key) {
-    return MethodType.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
-  }
-
-  static ParameterType getParameterType(String key) {
-    return ParameterType.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
-  }
-
-  static ParameterLocation getParameterLocation(String key) {
-    return ParameterLocation.values.firstWhere((e) => e.name.toLowerCase() == key.toLowerCase());
   }
 }
