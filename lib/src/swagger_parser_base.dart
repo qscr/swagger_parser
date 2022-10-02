@@ -1,5 +1,3 @@
-// TODO: Put public facing types in this file.
-
 import 'package:swagger_parser/models/swagger_document/swagger_doc.dart';
 import 'package:swagger_parser/service/get_swagger_doc.dart';
 

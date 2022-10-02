@@ -11,6 +11,5 @@ class SwaggerDoc {
 
   factory SwaggerDoc.fromJson(Map<String, dynamic> json) => _$SwaggerDocFromJson(json);
 
-  @override
   Map<String, dynamic> toJson() => _$SwaggerDocToJson(this);
 }

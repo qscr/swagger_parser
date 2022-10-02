@@ -1,6 +1,7 @@
 import 'package:swagger_parser/models/enums.dart';
 import 'package:swagger_parser/models/swagger_document/base_parameter.dart';
 
+/// Контент ссылки на модель
 class RefContent {
   RefContent({
     this.name,
@@ -9,15 +10,15 @@ class RefContent {
     this.parentDescription,
   });
 
-  //название родительского параметра
+  /// Название родительского параметра
   String? name;
 
-  //Параметры рефки сформированные в модель
+  /// Параметры рефки сформированные в модель
   List<BaseParameter>? childProperties;
 
-  //Тип родительского параметра
+  /// Тип родительского параметра
   ParameterType parentType;
 
-  //описание родительского параметра
+  /// Описание родительского параметра
   String? parentDescription;
 }

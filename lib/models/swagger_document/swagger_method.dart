@@ -33,6 +33,10 @@ class SwaggerMethod {
 
   factory SwaggerMethod.fromJson(Map<String, dynamic> json) => _$SwaggerMethodFromJson(json);
 
-  @override
   Map<String, dynamic> toJson() => _$SwaggerMethodToJson(this);
+
+  @override
+  String toString() {
+    return '$type $name';
+  }
 }

@@ -36,4 +36,9 @@ class BaseParameter {
   factory BaseParameter.fromJson(Map<String, dynamic> json) => _$BaseParameterFromJson(json);
 
   Map<String, dynamic> toJson() => _$BaseParameterToJson(this);
+
+  @override
+  String toString() {
+    return '$type $name';
+  }
 }

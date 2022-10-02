@@ -30,19 +30,12 @@ class GetSwaggerDoc {
 
   static Future<SwaggerDoc> getSwaggerDoc(String url) async {
     final mainMap = await GetResponse.getResponse(url);
-    final pathsMap = mainMap[pathsKey];
+    final Map<String, dynamic> pathsMap = mainMap[pathsKey];
+
     List<SwaggerMethod> swaggerMethods = [];
 
-    if (pathsMap == null && pathsMap is! Map<String, dynamic>) {
-      throw Error();
-    }
-
     for (var path in pathsMap.entries) {
-      final methodsMap = path.value;
-
-      if (methodsMap == null && methodsMap is! Map<String, dynamic>) {
-        throw Error();
-      }
+      final Map<String, dynamic> methodsMap = path.value;
 
       for (var method in methodsMap.entries) {
         var swaggerMethod = SwaggerMethod(
@@ -50,11 +43,7 @@ class GetSwaggerDoc {
           type: EnumsHelper.getMethodType(method.key),
         );
 
-        final methodContentMap = method.value;
-
-        if (methodContentMap == null && methodContentMap is! Map<String, dynamic>) {
-          throw Error();
-        }
+        final Map<String, dynamic> methodContentMap = method.value;
 
         swaggerMethod.description = methodContentMap[summaryKey];
         swaggerMethod.requestParameters =
@@ -79,13 +68,14 @@ class GetSwaggerDoc {
   }) {
     for (var element in dictionary.entries) {
       if (keys.contains(element.key)) {
-        var schemaMap = element.value;
-        return schemaMap is Map<String, dynamic> ? schemaMap : null;
+        return element.value is Map<String, dynamic> ? element.value : null;
       }
 
-      var nextMap = element.value;
-      if (nextMap is Map<String, dynamic>) {
-        return _getKeyMap(dictionary: nextMap, keys: keys);
+      if (element.value is Map<String, dynamic>) {
+        return _getKeyMap(dictionary: element.value, keys: keys);
+      }
+      if (dictionary.keys.contains(typeKey)) {
+        return dictionary;
       }
     }
     return null;
@@ -162,7 +152,7 @@ class GetSwaggerDoc {
     List<SwaggerRequestParameter> requestParameters = [];
     var parametersMap = methodContentMap[parametersKey];
 
-    if (parametersMap != null && parametersMap is List<Map<String, dynamic>>) {
+    if (parametersMap != null && parametersMap is List<dynamic>) {
       for (var parameter in parametersMap) {
         var parameterSchemaMap = _getKeyMap(dictionary: parameter, keys: [schemaKey]);
 

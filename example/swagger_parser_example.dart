@@ -1,7 +1,8 @@
 import 'package:swagger_parser/swagger_parser.dart';
 
-void main() {
+void main() async {
   final parser = SwaggerParser();
-  var url = "http://213.226.112.183:8090/swagger/v1/swagger.json";
-  parser.getDoc(url);
+  var url = "http://gkh-test.bars-open.ru/test-rt/swagger/docs/v1";
+  final doc = await parser.getDoc(url);
+  print(doc);
 }
