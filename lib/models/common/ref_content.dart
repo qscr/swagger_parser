@@ -8,6 +8,7 @@ class RefContent {
     this.childProperties,
     required this.parentType,
     this.parentDescription,
+    this.childrenBaseType,
   });
 
   /// Название родительского параметра
@@ -21,4 +22,7 @@ class RefContent {
 
   /// Описание родительского параметра
   String? parentDescription;
+
+  /// Параметр, когда массив состоит из примитивных типов
+  ParameterType? childrenBaseType;
 }

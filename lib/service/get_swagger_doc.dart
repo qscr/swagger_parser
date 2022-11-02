@@ -217,9 +217,12 @@ class GetSwaggerDoc {
       }
 
       var childProperties = refContent[propertiesKey];
-      if (childProperties == null && childProperties is! Map<String, dynamic>) {
+      if (childProperties == null) {
         return RefContent(
-            parentType: EnumsHelper.getParameterType(typeStr ?? refContent[typeKey].toString()));
+          parentType: EnumsHelper.getParameterType(
+            typeStr ?? refContent[typeKey].toString(),
+          ),
+        );
       }
 
       var childParameters = _getParameters(childProperties, mainMap);
@@ -233,9 +236,17 @@ class GetSwaggerDoc {
     }
 
     if (itemsMap != null) {
+      final nestedItemsMap =
+          itemsMap[itemsKey] != null ? itemsMap[itemsKey] as Map<String, dynamic> : null;
       return RefContent(
-          childProperties: _getParameters(itemsMap, mainMap),
-          parentType: EnumsHelper.getParameterType(typeStr.toString()));
+        childProperties: _getParameters(itemsMap, mainMap),
+        parentType: EnumsHelper.getParameterType(typeStr.toString()),
+        childrenBaseType: nestedItemsMap?[typeKey] != null
+            ? EnumsHelper.getParameterType(
+                nestedItemsMap![typeKey],
+              )
+            : null,
+      );
     }
 
     return RefContent(parentType: EnumsHelper.getParameterType(typeStr.toString()));
@@ -271,6 +282,7 @@ class GetSwaggerDoc {
         nullable: propertyMap[nullableKey],
         childParameters: refProperties.childProperties,
         format: propertyMap[formatKey],
+        childrenBaseType: refProperties.childrenBaseType,
       );
       parameters.add(baseParameter);
     }

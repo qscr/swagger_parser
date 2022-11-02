@@ -13,6 +13,7 @@ class BaseParameter {
     this.childParameters,
     this.nullable,
     this.format,
+    this.childrenBaseType,
   });
 
   /// Комментарий к параметру
@@ -32,6 +33,9 @@ class BaseParameter {
 
   // Дочерние параметры
   List<BaseParameter>? childParameters;
+
+  /// Параметр, когда массив состоит из примитивных типов
+  ParameterType? childrenBaseType;
 
   factory BaseParameter.fromJson(Map<String, dynamic> json) => _$BaseParameterFromJson(json);
 
