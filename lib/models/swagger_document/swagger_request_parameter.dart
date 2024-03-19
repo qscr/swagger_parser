@@ -8,17 +8,19 @@ part 'swagger_request_parameter.g.dart';
 @JsonSerializable()
 class SwaggerRequestParameter extends BaseParameter {
   SwaggerRequestParameter({
-    required super.name,
     required super.type,
     required this.location,
+    super.name,
     super.description,
-    super.childParameters,
-    super.nullable,
+    this.childParameters,
+    super.required,
     super.format,
   });
 
   /// Откуда параметр (хедер, квери и т.д.)
   ParameterLocation location;
+
+  List<SwaggerRequestParameter>? childParameters;
 
   factory SwaggerRequestParameter.fromJson(Map<String, dynamic> json) =>
       _$SwaggerRequestParameterFromJson(json);

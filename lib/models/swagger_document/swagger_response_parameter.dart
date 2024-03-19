@@ -8,13 +8,15 @@ part 'swagger_response_parameter.g.dart';
 @JsonSerializable()
 class SwaggerResponseParameter extends BaseParameter {
   SwaggerResponseParameter({
-    required super.name,
+    super.name,
     required super.type,
+    this.childParameters,
     super.description,
-    super.childParameters,
-    super.nullable,
+    super.required,
     super.format,
   });
+
+  List<SwaggerResponseParameter>? childParameters;
 
   factory SwaggerResponseParameter.fromJson(Map<String, dynamic> json) =>
       _$SwaggerResponseParameterFromJson(json);

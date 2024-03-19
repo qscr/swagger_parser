@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:swagger_parser/models/enums.dart';
 
@@ -8,41 +9,45 @@ part 'base_parameter.g.dart';
 class BaseParameter {
   BaseParameter({
     this.description,
-    required this.name,
+    this.name,
     required this.type,
-    this.childParameters,
-    this.nullable,
+    this.required,
     this.format,
     this.childrenBaseType,
   });
+
+  BaseParameter.empty()
+      : name = '',
+        type = ParameterType.object;
 
   /// Комментарий к параметру
   String? description;
 
   /// Название параметра
-  String name;
+  String? name;
 
-  /// Тип переменной
+  /// Тип параметра
   ParameterType type;
 
   /// Формат переменной
   String? format;
 
-  //Является поле обязательным
-  bool? nullable;
-
-  // Дочерние параметры
-  List<BaseParameter>? childParameters;
+  /// Является поле обязательным
+  bool? required;
 
   /// Параметр, когда массив состоит из примитивных типов
   ParameterType? childrenBaseType;
 
-  factory BaseParameter.fromJson(Map<String, dynamic> json) => _$BaseParameterFromJson(json);
+  factory BaseParameter.fromJson(Map<String, dynamic> json) =>
+      _$BaseParameterFromJson(json);
 
   Map<String, dynamic> toJson() => _$BaseParameterToJson(this);
 
   @override
   String toString() {
-    return '$type $name';
+    return [type.name, name]
+        .whereNotNull()
+        .where((element) => element.isNotEmpty)
+        .join(' ');
   }
 }

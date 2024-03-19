@@ -1,0 +1,26 @@
+{
+    "JsonSerializableModel": {
+        "prefix": "jsdartmodel",
+        "body": [
+            "import 'package:json_annotation/json_annotation.dart';",
+            "",
+            "part '${1/([a-z]+)(?=[A-Z])|([A-Z])(?=[A-Z])|([A-Z][a-z]+)(?=$)|([A-Z][a-z]+)|([a-z]+)(?=$)/${1:/downcase}${1:+_}$2${2:+_}${3:/downcase}${4:/downcase}${4:+_}${5:/downcase}/g}.g.dart';",
+            "",
+            "@JsonSerializable()",
+            "class $1 {",
+            "  $1({",
+            "\trequired this.title,",
+            "  });",
+            "",
+            "  /// REQUIRED",
+            "  final String title;",
+            "",
+            "  factory $1.fromJson(Map<String, dynamic> json) =>",
+            "\t  _\\$$1FromJson(json);",
+            "",
+            "  Map<String, dynamic> toJson() => _\\$$1ToJson(this);",
+            "}$0",
+            ""
+        ],
+    }
+}

@@ -24,7 +24,7 @@ SwaggerMethod _$SwaggerMethodFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$SwaggerMethodToJson(SwaggerMethod instance) =>
     <String, dynamic>{
       'name': instance.name,
-      'type': _$MethodTypeEnumMap[instance.type],
+      'type': _$MethodTypeEnumMap[instance.type]!,
       'description': instance.description,
       'requestParameters': instance.requestParameters,
       'responseParameters': instance.responseParameters,

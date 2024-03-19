@@ -9,44 +9,45 @@ part of 'swagger_request_parameter.dart';
 SwaggerRequestParameter _$SwaggerRequestParameterFromJson(
         Map<String, dynamic> json) =>
     SwaggerRequestParameter(
-      name: json['name'] as String,
       type: $enumDecode(_$ParameterTypeEnumMap, json['type']),
       location: $enumDecode(_$ParameterLocationEnumMap, json['location']),
+      name: json['name'] as String?,
       description: json['description'] as String?,
       childParameters: (json['childParameters'] as List<dynamic>?)
-          ?.map((e) => BaseParameter.fromJson(e as Map<String, dynamic>))
+          ?.map((e) =>
+              SwaggerRequestParameter.fromJson(e as Map<String, dynamic>))
           .toList(),
-      nullable: json['nullable'] as bool?,
+      required: json['required'] as bool?,
       format: json['format'] as String?,
-    );
+    )..childrenBaseType =
+        $enumDecodeNullable(_$ParameterTypeEnumMap, json['childrenBaseType']);
 
 Map<String, dynamic> _$SwaggerRequestParameterToJson(
         SwaggerRequestParameter instance) =>
     <String, dynamic>{
       'description': instance.description,
       'name': instance.name,
-      'type': _$ParameterTypeEnumMap[instance.type],
+      'type': _$ParameterTypeEnumMap[instance.type]!,
       'format': instance.format,
-      'nullable': instance.nullable,
+      'required': instance.required,
+      'childrenBaseType': _$ParameterTypeEnumMap[instance.childrenBaseType],
+      'location': _$ParameterLocationEnumMap[instance.location]!,
       'childParameters': instance.childParameters,
-      'location': _$ParameterLocationEnumMap[instance.location],
     };
 
 const _$ParameterTypeEnumMap = {
-  ParameterType.integer: 'integer',
-  ParameterType.double: 'double',
-  ParameterType.string: 'string',
-  ParameterType.bool: 'bool',
   ParameterType.array: 'array',
   ParameterType.object: 'object',
-  ParameterType.file: 'file',
+  ParameterType.integer: 'integer',
   ParameterType.number: 'number',
+  ParameterType.string: 'string',
   ParameterType.boolean: 'boolean',
 };
 
 const _$ParameterLocationEnumMap = {
   ParameterLocation.path: 'path',
-  ParameterLocation.headers: 'headers',
+  ParameterLocation.header: 'header',
   ParameterLocation.query: 'query',
+  ParameterLocation.cookie: 'cookie',
   ParameterLocation.body: 'body',
 };
